@@ -59,7 +59,7 @@ class SessionDataTask: NSURLSessionDataTask {
         }
         
         // Create directory
-        let outputDirectory = session.outputDirectory.stringByExpandingTildeInPath
+        let outputDirectory = (session.outputDirectory as NSString).stringByExpandingTildeInPath
         let fileManager = NSFileManager.defaultManager()
         if !fileManager.fileExistsAtPath(outputDirectory) {
             try! fileManager.createDirectoryAtPath(outputDirectory, withIntermediateDirectories: true, attributes: nil)
@@ -74,10 +74,21 @@ class SessionDataTask: NSURLSessionDataTask {
             
             // Persist
             do {
-                let outputPath = outputDirectory.stringByAppendingPathComponent(self.session.cassetteName).stringByAppendingPathExtension("json")!
+                let outputPath = ((outputDirectory as NSString).stringByAppendingPathComponent(self.session.cassetteName) as NSString).stringByAppendingPathExtension("json")!
                 let data = try NSJSONSerialization.dataWithJSONObject(cassette.dictionary, options: [.PrettyPrinted])
-                data.writeToFile(outputPath, atomically: true)
-                fatalError("[DVR] Persisted cassette at \(outputPath). Please add this file to your test target")
+
+                // Add trailing new line
+                guard var string = NSString(data: data, encoding: NSUTF8StringEncoding) else {
+                    fatalError("[DVR] Failed to persist cassette.")
+                }
+                string = string.stringByAppendingString("\n")
+
+                if let data = string.dataUsingEncoding(NSUTF8StringEncoding) {
+                    data.writeToFile(outputPath, atomically: true)
+                    fatalError("[DVR] Persisted cassette at \(outputPath). Please add this file to your test target")
+                }
+
+                fatalError("[DVR] Failed to persist cassette.")
             } catch {
                 // Do nothing
             }
